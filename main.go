@@ -15,6 +15,7 @@ import (
 )
 
 var RenomearPorNumero = false
+var DeletarArquivoOriginal = false
 
 func main() {
 	// Cria um roteador Gin
@@ -42,9 +43,11 @@ func convertHandler(c *gin.Context) {
 	outputDir := c.DefaultPostForm("outputDir", "C:\\Users\\leand\\Music")
 	quality := c.DefaultPostForm("quality", "10")
 	renameByNumber := c.DefaultPostForm("renameByNumber", "false")
+	deleteFileOriginal := c.DefaultPostForm("deleteFileOriginal", "false")
 
 	// Converter a entrada do checkbox para booleano
 	RenomearPorNumero = renameByNumber == "true"
+	DeletarArquivoOriginal = deleteFileOriginal == "true"
 
 	// Chamar a função de conversão
 	err := converter(inputDir, outputDir, quality)
@@ -58,9 +61,7 @@ func convertHandler(c *gin.Context) {
 	// Retornar resposta de sucesso
 	c.HTML(http.StatusOK, "message.html", gin.H{
 		"Year": time.Now().Year(),
-		//"DateLicense": dateLicense.Format("02/01/2006 15:04:05"),
 	})
-
 }
 
 func converter(inputDir, outputDir, Quality string) error {
@@ -146,6 +147,16 @@ func converter(inputDir, outputDir, Quality string) error {
 			}
 
 			fmt.Printf("File successfully converted: %s\n", outputFile)
+
+			// Apagar o arquivo original se a opção estiver marcada
+			if DeletarArquivoOriginal {
+				err := os.Remove(inputFile)
+				if err != nil {
+					fmt.Printf("Error deleting original file %s: %v\n", inputFile, err)
+				} else {
+					fmt.Printf("Original file deleted: %s\n", inputFile)
+				}
+			}
 
 			<-sem
 		}(idx, inputFile)
