@@ -34,6 +34,7 @@ func main() {
 	router.POST("/convert", convertHandler)
 
 	// Inicia o servidor na porta 8080
+	go openBrowser("http://localhost:8080") // Abrir o navegador automaticamente
 	router.Run(":8080")
 }
 
@@ -168,4 +169,20 @@ func converter(inputDir, outputDir, Quality string) error {
 	fmt.Printf("Conversion completed in %s\n", duration)
 
 	return nil
+}
+
+func openBrowser(url string) {
+	var err error
+	// Tenta abrir o navegador de forma multiplataforma
+	switch runtime.GOOS {
+	case "windows":
+		err = exec.Command("cmd", "/C", "start", url).Start()
+	case "darwin":
+		err = exec.Command("open", url).Start()
+	default:
+		err = exec.Command("xdg-open", url).Start()
+	}
+	if err != nil {
+		fmt.Printf("Erro ao abrir o navegador: %v\n", err)
+	}
 }
