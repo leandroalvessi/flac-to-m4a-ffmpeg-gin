@@ -57,6 +57,12 @@ func convertHandler(c *gin.Context) {
 		}
 	}
 
+	// Gerar o nome de arquivo baseado na data e hora atuais (exemplo: _202502251054_Comprimido.pdf)
+	currentTime := time.Now().Format("200601021504") // Ano, Mês, Dia, Hora, Minuto
+	fileNameWithoutExt := filepath.Base(file.Filename)
+	ext := filepath.Ext(fileNameWithoutExt)
+	newFileName := fileNameWithoutExt[:len(fileNameWithoutExt)-len(ext)] + "_" + currentTime + "_Comprimido" + ext
+
 	// Definir o caminho completo para o arquivo enviado
 	filePath := filepath.Join(uploadDir, file.Filename)
 
@@ -70,7 +76,7 @@ func convertHandler(c *gin.Context) {
 
 	// Definir o diretório de saída como o mesmo diretório onde o arquivo foi salvo
 	outputDir := filepath.Dir(filePath)
-	outputFile := filepath.Join(outputDir, "output.pdf")
+	outputFile := filepath.Join(outputDir, newFileName)
 
 	// Chamar a função de compressão de PDF (ajuste conforme sua lógica)
 	err = comprimirPDF(filePath, outputFile, quality)
