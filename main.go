@@ -7,15 +7,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
-
-var RenomearPorNumero = false
-var DeletarArquivoOriginal = false
 
 func main() {
 	// Cria um roteador Gin
@@ -39,134 +34,85 @@ func main() {
 }
 
 func convertHandler(c *gin.Context) {
-	// Obter os parâmetros do formulário
-	inputDir := c.DefaultPostForm("inputDir", "C:\\Users\\leand\\Music")
-	outputDir := c.DefaultPostForm("outputDir", "C:\\Users\\leand\\Music")
-	quality := c.DefaultPostForm("quality", "10")
-	renameByNumber := c.DefaultPostForm("renameByNumber", "false")
-	deleteFileOriginal := c.DefaultPostForm("deleteFileOriginal", "false")
-
-	// Converter a entrada do checkbox para booleano
-	RenomearPorNumero = renameByNumber == "true"
-	DeletarArquivoOriginal = deleteFileOriginal == "true"
-
-	// Chamar a função de conversão
-	err := converter(inputDir, outputDir, quality)
+	// Obter o arquivo PDF enviado pelo formulário
+	file, err := c.FormFile("inputFile")
 	if err != nil {
-		c.JSON(500, gin.H{
-			"message": fmt.Sprintf("Error: %v", err),
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Erro ao obter o arquivo: " + err.Error(),
+		})
+		return
+	}
+
+	// Obter a qualidade selecionada
+	quality := c.PostForm("quality")
+
+	// Criar um diretório para armazenar os arquivos enviados (se ainda não existir)
+	uploadDir := "Arquivos Comprimidos"
+	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"message": "Erro ao criar diretório de upload: " + err.Error(),
+			})
+			return
+		}
+	}
+
+	// Definir o caminho completo para o arquivo enviado
+	filePath := filepath.Join(uploadDir, file.Filename)
+
+	// Salvar o arquivo enviado no diretório de upload
+	if err := c.SaveUploadedFile(file, filePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Erro ao salvar o arquivo enviado: " + err.Error(),
+		})
+		return
+	}
+
+	// Definir o diretório de saída como o mesmo diretório onde o arquivo foi salvo
+	outputDir := filepath.Dir(filePath)
+	outputFile := filepath.Join(outputDir, "output.pdf")
+
+	// Chamar a função de compressão de PDF (ajuste conforme sua lógica)
+	err = comprimirPDF(filePath, outputFile, quality)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Erro ao comprimir o PDF: " + err.Error(),
+		})
+		return
+	}
+
+	// Verificar se o arquivo de saída foi criado
+	if _, err := os.Stat(outputFile); os.IsNotExist(err) {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Erro: O arquivo de saída não foi criado: " + outputFile,
 		})
 		return
 	}
 
 	// Retornar resposta de sucesso
 	c.HTML(http.StatusOK, "message.html", gin.H{
-		"Year": time.Now().Year(),
+		"Year":    time.Now().Year(),
+		"message": "PDF comprimido com sucesso!",
 	})
 }
 
-func converter(inputDir, outputDir, Quality string) error {
-	files, err := os.ReadDir(inputDir)
+func comprimirPDF(input string, output string, screen string) error {
+	println(output)
+	cmd := exec.Command("gswin64",
+		"-sDEVICE=pdfwrite",
+		"-dCompatibilityLevel=1.4",
+		"-dPDFSETTINGS=/"+screen,
+		"-dNOPAUSE",
+		"-dQUIET",
+		"-dBATCH",
+		"-sOutputFile="+output,
+		input)
+
+	// Executar o comando
+	err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("error opening directory: %v", err)
+		return fmt.Errorf("erro ao comprimir o PDF: %v", err)
 	}
-
-	var wg sync.WaitGroup
-
-	// Obter os núcleos de CPU disponíveis
-	numCPU := 1
-	if runtime.NumCPU() > 1 {
-		numCPU = runtime.NumCPU()
-	}
-
-	// Semáforo para limitar a execução concorrente
-	sem := make(chan struct{}, numCPU)
-
-	// Fila de arquivos para processar
-	var fileQueue []string
-	for _, file := range files {
-		if !file.IsDir() && strings.HasSuffix(strings.ToLower(file.Name()), ".flac") {
-			fileQueue = append(fileQueue, filepath.Join(inputDir, file.Name()))
-		}
-	}
-
-	// Iniciar o processamento dos arquivos
-	startTime := time.Now()
-	totalFiles := len(fileQueue)
-	fmt.Printf("Starting conversion of %d FLAC files...\n", totalFiles)
-
-	for idx, inputFile := range fileQueue {
-		wg.Add(1)
-		sem <- struct{}{}
-
-		go func(idx int, inputFile string) {
-			defer wg.Done()
-
-			var outputFile string
-
-			if RenomearPorNumero {
-				// Renomear arquivos com um prefixo numérico
-				numeroMusica := fmt.Sprintf("%02d", idx+1)
-				outputFile = filepath.Join(outputDir, numeroMusica+" - "+strings.TrimSuffix(filepath.Base(inputFile), ".flac")+".m4a")
-			} else {
-				outputFile = filepath.Join(outputDir, strings.TrimSuffix(filepath.Base(inputFile), ".flac")+".m4a")
-			}
-
-			// Garantir que o nome do arquivo de saída seja único
-			counter := 1
-			for {
-				if _, err := os.Stat(outputFile); err == nil {
-					outputFile = filepath.Join(outputDir, fmt.Sprintf("%s (Copy %d).m4a", strings.TrimSuffix(filepath.Base(inputFile), ".flac"), counter))
-					counter++
-				} else {
-					break
-				}
-			}
-
-			// Executar o comando FFmpeg para converter o arquivo
-			cmd := exec.Command(
-				"ffmpeg",
-				"-i", inputFile,
-				"-c:a", "aac",
-				"-q:a", Quality,
-				"-map", "0",
-				"-map_metadata", "0",
-				"-c:v", "mjpeg",
-				"-disposition:v", "attached_pic",
-				"-avoid_negative_ts", "make_zero",
-				outputFile,
-			)
-
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-
-			err := cmd.Run()
-			if err != nil {
-				fmt.Printf("Error converting %s: %v\n", inputFile, err)
-				<-sem
-				return
-			}
-
-			fmt.Printf("File successfully converted: %s\n", outputFile)
-
-			// Apagar o arquivo original se a opção estiver marcada
-			if DeletarArquivoOriginal {
-				err := os.Remove(inputFile)
-				if err != nil {
-					fmt.Printf("Error deleting original file %s: %v\n", inputFile, err)
-				} else {
-					fmt.Printf("Original file deleted: %s\n", inputFile)
-				}
-			}
-
-			<-sem
-		}(idx, inputFile)
-	}
-
-	wg.Wait()
-
-	duration := time.Since(startTime)
-	fmt.Printf("Conversion completed in %s\n", duration)
 
 	return nil
 }
