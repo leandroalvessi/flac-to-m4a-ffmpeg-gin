@@ -1,7 +1,9 @@
 package main
 
 import (
+	"embed"
 	"fmt"
+	"html/template"
 	"net/http"
 	"os"
 	"os/exec"
@@ -12,11 +14,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+//go:embed templates/*.html
+var templatesFS embed.FS
+
 func main() {
 	// Cria um roteador Gin
 	router := gin.Default()
-	workingDir, _ := os.Getwd()
-	router.LoadHTMLGlob(workingDir + "/templates/*.html")
+
+	// Carrega os templates HTML incorporados
+	templ := template.Must(template.New("").ParseFS(templatesFS, "templates/*.html"))
+	router.SetHTMLTemplate(templ)
 
 	// Define uma rota GET
 	router.GET("/", func(c *gin.Context) {
