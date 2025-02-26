@@ -21,18 +21,23 @@ func main() {
 	// Cria um roteador Gin
 	router := gin.Default()
 
+	// Configura proxies confiáveis
+	// Substitua []string{"127.0.0.1"} pelos IPs dos seus proxies confiáveis
+	// Exemplo: []string{"192.168.1.0/24", "10.0.0.0/8"}
+	router.SetTrustedProxies([]string{"127.0.0.1"}) // Confia apenas no localhost
+
 	// Carrega os templates HTML incorporados
 	templ := template.Must(template.New("").ParseFS(templatesFS, "templates/*.html"))
 	router.SetHTMLTemplate(templ)
 
-	// Define uma rota GET
+	// Define uma rota GET para a página inicial
 	router.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.html", gin.H{
 			"Year": time.Now().Year(),
 		})
 	})
 
-	// Define uma rota POST
+	// Define uma rota POST para compressão de PDF
 	router.POST("/compress", comprimirHandler)
 
 	// Inicia o servidor na porta 8080
@@ -40,6 +45,7 @@ func main() {
 	router.Run(":8080")
 }
 
+// Handler para compressão de PDF
 func comprimirHandler(c *gin.Context) {
 	// Obter o arquivo PDF enviado pelo formulário
 	file, err := c.FormFile("inputFile")
@@ -117,6 +123,7 @@ func comprimirHandler(c *gin.Context) {
 	})
 }
 
+// Função para comprimir PDF usando Ghostscript
 func comprimirPDF(input string, output string, screen string) error {
 	println(output)
 	cmd := exec.Command("gswin64",
@@ -138,6 +145,7 @@ func comprimirPDF(input string, output string, screen string) error {
 	return nil
 }
 
+// Função para abrir o navegador automaticamente
 func openBrowser(url string) {
 	var err error
 	// Tenta abrir o navegador de forma multiplataforma
