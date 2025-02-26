@@ -58,7 +58,7 @@ func comprimirHandler(c *gin.Context) {
 	}
 
 	// Gerar o nome de arquivo baseado na data e hora atuais
-	currentTime := time.Now().Format("200601021504")
+	currentTime := time.Now().Format("20060102150405") // Inclui segundos
 	fileNameWithoutExt := filepath.Base(file.Filename)
 	ext := filepath.Ext(fileNameWithoutExt)
 	newFileName := fileNameWithoutExt[:len(fileNameWithoutExt)-len(ext)] + "_" + currentTime + "_Comprimido" + ext
