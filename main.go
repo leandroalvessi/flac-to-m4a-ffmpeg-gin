@@ -26,14 +26,14 @@ func main() {
 	})
 
 	// Define uma rota POST
-	router.POST("/convert", convertHandler)
+	router.POST("/compress", comprimirHandler)
 
 	// Inicia o servidor na porta 8080
 	go openBrowser("http://localhost:8080") // Abrir o navegador automaticamente
 	router.Run(":8080")
 }
 
-func convertHandler(c *gin.Context) {
+func comprimirHandler(c *gin.Context) {
 	// Obter o arquivo PDF enviado pelo formulário
 	file, err := c.FormFile("inputFile")
 	if err != nil {
@@ -57,8 +57,8 @@ func convertHandler(c *gin.Context) {
 		}
 	}
 
-	// Gerar o nome de arquivo baseado na data e hora atuais (exemplo: _202502251054_Comprimido.pdf)
-	currentTime := time.Now().Format("200601021504") // Ano, Mês, Dia, Hora, Minuto
+	// Gerar o nome de arquivo baseado na data e hora atuais
+	currentTime := time.Now().Format("200601021504")
 	fileNameWithoutExt := filepath.Base(file.Filename)
 	ext := filepath.Ext(fileNameWithoutExt)
 	newFileName := fileNameWithoutExt[:len(fileNameWithoutExt)-len(ext)] + "_" + currentTime + "_Comprimido" + ext
@@ -74,11 +74,11 @@ func convertHandler(c *gin.Context) {
 		return
 	}
 
-	// Definir o diretório de saída como o mesmo diretório onde o arquivo foi salvo
+	// Definir o diretório de saída e o nome do arquivo comprimido
 	outputDir := filepath.Dir(filePath)
 	outputFile := filepath.Join(outputDir, newFileName)
 
-	// Chamar a função de compressão de PDF (ajuste conforme sua lógica)
+	// Chamar a função de compressão de PDF
 	err = comprimirPDF(filePath, outputFile, quality)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -91,6 +91,14 @@ func convertHandler(c *gin.Context) {
 	if _, err := os.Stat(outputFile); os.IsNotExist(err) {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Erro: O arquivo de saída não foi criado: " + outputFile,
+		})
+		return
+	}
+
+	// Excluir o arquivo original enviado
+	if err := os.Remove(filePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Erro ao excluir o arquivo original: " + err.Error(),
 		})
 		return
 	}
