@@ -21,8 +21,12 @@
                   </nav>
                   <div class="container">
                     <br>
-                    <h1>Compressão concluída com sucesso</h1>
+                    <h1>{{ .Message }}</h1>
                     <br>
+                      {{ if .ExpectedHash }}
+                        <h5>Serial Hardware: {{ .ExpectedHash }}</h5>
+                        <br>
+                      {{ end }}
                     <br>
                 </div>
                 </div>
