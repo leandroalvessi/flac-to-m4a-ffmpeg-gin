@@ -21,7 +21,8 @@ import (
 var templatesFS embed.FS
 
 // Hash esperado para comparação (substitua pelo hash desejado)
-const expectedHash = "8c6f1ec103bc95a87afdc44086eb138fa98cd55dc2ffd6ab67de7115bd20c8a8" //Dell I5 Leandro
+// const expectedHash = "8c6f1ec103bc95a87afdc44086eb138fa98cd55dc2ffd6ab67de7115bd20c8a8" //Dell I5 Leandro
+const expectedHash = "051674d950b1f3e361dc39c50022c92801cffcb0ad175ebfb836cb0fe9cb8a62" //PC Joelsom e Ursula
 
 func main() {
 	gin.SetMode(gin.ReleaseMode) // Define o modo de execução como "release"
@@ -82,6 +83,8 @@ func comprimirHandler(c *gin.Context) {
 
 	// Obter a qualidade selecionada
 	quality := c.PostForm("quality")
+	Level := c.PostForm("compatibility")
+	print(Level)
 
 	// Criar um diretório para armazenar os arquivos enviados (se ainda não existir)
 	uploadDir := "Arquivos Comprimidos"
@@ -116,7 +119,7 @@ func comprimirHandler(c *gin.Context) {
 	outputFile := filepath.Join(outputDir, newFileName)
 
 	// Chamar a função de compressão de PDF
-	err = comprimirPDF(filePath, outputFile, quality)
+	err = comprimirPDF(filePath, outputFile, quality, Level)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Erro ao comprimir o PDF: " + err.Error(),
@@ -149,11 +152,13 @@ func comprimirHandler(c *gin.Context) {
 }
 
 // Função para comprimir PDF usando Ghostscript
-func comprimirPDF(input string, output string, screen string) error {
+func comprimirPDF(input string, output string, screen string, compatibilityLevel string) error {
 	println(output)
+
+	// Ajusta o parâmetro dCompatibilityLevel com base na versão selecionada
 	cmd := exec.Command("gswin64",
 		"-sDEVICE=pdfwrite",
-		"-dCompatibilityLevel=1.4",
+		"-dCompatibilityLevel="+compatibilityLevel, // Adiciona a versão selecionada
 		"-dPDFSETTINGS=/"+screen,
 		"-dNOPAUSE",
 		"-dQUIET",
