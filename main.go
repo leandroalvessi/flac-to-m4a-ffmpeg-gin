@@ -20,9 +20,11 @@ import (
 //go:embed templates/*.html
 var templatesFS embed.FS
 
-// Hash esperado para comparação (substitua pelo hash desejado)
-// const expectedHash = "8c6f1ec103bc95a87afdc44086eb138fa98cd55dc2ffd6ab67de7115bd20c8a8" //Dell I5 Leandro
-const expectedHash = "051674d950b1f3e361dc39c50022c92801cffcb0ad175ebfb836cb0fe9cb8a62" //PC Joelsom e Ursula
+// Lista de hashes válidos
+var validHashes = map[string]string{
+	"8c6f1ec103bc95a87afdc44086eb138fa98cd55dc2ffd6ab67de7115bd20c8a8": "Dell I5 Leandro",
+	"051674d950b1f3e361dc39c50022c92801cffcb0ad175ebfb836cb0fe9cb8a62": "PC Joelsom e Ursula",
+}
 
 func main() {
 	gin.SetMode(gin.ReleaseMode) // Define o modo de execução como "release"
@@ -293,8 +295,9 @@ func generateHardwareHash() string {
 	return hex.EncodeToString(hash[:])
 }
 
-// compareHash verifica se o hash gerado corresponde ao hash esperado
+// Função para verificar se o hash gerado está na lista de hashes válidos
 func compareHash() (string, bool) {
 	generatedHash := generateHardwareHash()
-	return generatedHash, generatedHash == expectedHash
+	_, exists := validHashes[generatedHash]
+	return generatedHash, exists
 }
